@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build:
+      context: ./backend-microservices/api-gateway
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend-microservices/api-gateway/.env
+    ports:
+      - '3000:3000'
+    networks:
+      - backend_network
+
+  kitchen-service:
+    build:
+      context: ./backend-microservices/kitchen-service-nodejs
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend-microservices/kitchen-service-nodejs/.env
+    networks:
+      - backend_network
+
+  reception-service:
+    build:
+      context: ./backend-microservices/reception-service-nodejs
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend-microservices/reception-service-nodejs/.env
+    networks:
+      - backend_network
+
+  storage-service:
+    build:
+      context: ./backend-microservices/storage-service-nodejs
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend-microservices/storage-service-nodejs/.env
+    networks:
+      - backend_network
+
+networks:
+  backend_network:
+    driver: bridge

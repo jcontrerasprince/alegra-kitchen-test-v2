@@ -1,0 +1,8 @@
+:root {
+  --bg-color: hsl(230, 80%, 70%);
+}
+
+body {
+  background-color: var(--bg-color);
+  transition: background-color 0.6s ease-in-out;
+}

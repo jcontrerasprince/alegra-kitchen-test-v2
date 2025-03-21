@@ -1,0 +1,18 @@
+{
+  "name": "kitchen-alegra-test-v2",
+  "version": "1.0.0",
+  "description": "Este es un proyecto creado para la evaluación de una prueba técnica. Es un proyecto que consiste en un backend con un api-gateway y tres microservicios. El api-gateway recibe las peticiones HTTP y las comunica por eventos a los microservicios. Los microservicios se comunican a través de RabbitMQ, el cual es el message broker. Para el servicio de cocina (kitchen-service) se implementó un sistema por colas o _queues_ que utiliza Redis para gestionar los mensajes o los jobs.",
+  "scripts": {
+    "api-gateway": "cd ./backend-microservices/api-gateway && npm run start:dev",
+    "kitchen-service": "cd ./backend-microservices/kitchen-service-nestjs && npm run start:dev",
+    "reception-service": "cd ./backend-microservices/reception-service-nestjs && npm run start:dev",
+    "storage-service": "cd ./backend-microservices/storage-service-nestjs && npm run start:dev",
+    "start:all": "concurrently \"npm run api-gateway\" \"npm run kitchen-service\" \"npm run reception-service\" \"npm run storage-service\""
+  },
+  "keywords": [],
+  "author": "Jorge Contreras",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
