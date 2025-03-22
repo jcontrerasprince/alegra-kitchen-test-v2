@@ -19,6 +19,20 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
+app.get("/health", async (_req, res) => {
+  const dbStatus = AppDataSource.isInitialized ? "connected" : "disconnected";
+  const rabbitMQStatus = RabbitMQConfig.isConnected()
+    ? "connected"
+    : "disconnected";
+
+  res.json({
+    status: "ok",
+    database: dbStatus,
+    rabbitMQ: rabbitMQStatus,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 RabbitMQConfig.getChannel()
   .then(() => {
     RabbitMQConsumer.consume("kitchen", appService);
@@ -26,7 +40,6 @@ RabbitMQConfig.getChannel()
   .catch((err) => {
     console.error("No se pudo conectar a RabbitMQ:", err.message);
   });
-
 
 AppDataSource.initialize()
   .then(() => {
@@ -38,4 +51,3 @@ AppDataSource.initialize()
     });
   })
   .catch((err) => console.error("Error conectando a la BD:", err));
-

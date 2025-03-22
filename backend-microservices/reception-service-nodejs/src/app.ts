@@ -19,6 +19,20 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
+app.get("/health", async (_req, res) => {
+  const dbStatus = AppDataSource.isInitialized ? "connected" : "disconnected";
+  const rabbitMQStatus = RabbitMQConfig.isConnected()
+    ? "connected"
+    : "disconnected";
+
+  res.json({
+    status: "ok",
+    database: dbStatus,
+    rabbitMQ: rabbitMQStatus,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 RabbitMQConfig.getChannel()
   .then(() => {
     RabbitMQConsumer.consume("reception", appService);

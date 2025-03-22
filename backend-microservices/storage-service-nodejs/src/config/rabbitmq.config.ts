@@ -23,7 +23,9 @@ export class RabbitMQConfig {
   private static async connect(): Promise<ChannelModel> {
     try {
       console.log("Conectando a RabbitMQ...");
-      this.connection = await amqp.connect(process.env.RABBITMQ_URL || "amqp://localhost");
+      this.connection = await amqp.connect(
+        process.env.RABBITMQ_URL || "amqp://localhost"
+      );
 
       this.connection.on("error", async (err) => {
         console.error("Error en la conexión de RabbitMQ:", err.message);
@@ -69,10 +71,20 @@ export class RabbitMQConfig {
     }
 
     this.reconnectAttempts++;
-    console.log(`Reintentando conexión a RabbitMQ (${this.reconnectAttempts}/${this.maxReconnectAttempts}) en ${this.reconnectTimeout / 1000} segundos...`);
-    
+    console.log(
+      `Reintentando conexión a RabbitMQ (${this.reconnectAttempts}/${
+        this.maxReconnectAttempts
+      }) en ${this.reconnectTimeout / 1000} segundos...`
+    );
+
     setTimeout(() => {
-      this.connect().catch((err) => console.error("Fallo el reintento de conexión:", err.message));
+      this.connect().catch((err) =>
+        console.error("Fallo el reintento de conexión:", err.message)
+      );
     }, this.reconnectTimeout);
+  }
+
+  public static isConnected(): boolean {
+    return this.connection !== null && this.channel !== null;
   }
 }
