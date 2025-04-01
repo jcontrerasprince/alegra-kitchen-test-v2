@@ -15,5 +15,5 @@ export class Ingredient {
   qtyLock: number;
 
   @Column({ type: 'jsonb' })
-  orders: Array<string>;
+  preparationIds: Array<string>;
 }

@@ -25,11 +25,13 @@ export class RabbitMQConsumer {
 
         // Enviar respuesta a cola de respuesta
         if (msg.properties.replyTo) {
-          console.log(`[RabbitMQ] Enviando respuesta a ${msg.properties.replyTo}`);
+          console.log(
+            `[RabbitMQ] Enviando respuesta a ${msg.properties.replyTo}`
+          );
 
           channel.sendToQueue(
             msg.properties.replyTo,
-            Buffer.from(JSON.stringify(response)), 
+            Buffer.from(JSON.stringify({ success: true, data: response })),
             { correlationId: msg.properties.correlationId } // Para que el emisor sepa que esta respuesta es suya
           );
         }
@@ -37,6 +39,22 @@ export class RabbitMQConsumer {
         channel.ack(msg);
       } catch (error) {
         console.error(`Error procesando el mensaje:`, error);
+
+        if (msg.properties.replyTo) {
+          console.log(`[RabbitMQ] Enviando error a ${msg.properties.replyTo}`);
+
+          channel.sendToQueue(
+            msg.properties.replyTo,
+            Buffer.from(
+              JSON.stringify({
+                success: false,
+                error: error.message || "Error desconocido",
+              })
+            ),
+            { correlationId: msg.properties.correlationId }
+          );
+        }
+
         channel.nack(msg, false, false);
       }
     });

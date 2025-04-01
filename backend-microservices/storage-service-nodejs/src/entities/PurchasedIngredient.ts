@@ -17,7 +17,7 @@ export class PurchasedIngredient {
   qtyPurchased: number;
 
   @Column({ type: 'varchar', length: 100 })
-  order: string;
+  preparationId: string;
 
   @CreateDateColumn({
     type: 'timestamp with time zone',

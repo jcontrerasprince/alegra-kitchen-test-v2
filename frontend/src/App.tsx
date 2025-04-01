@@ -23,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import LoadingServices from "./LoadingServices";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -55,10 +56,7 @@ const fetchPreparations = async () => {
 
 const createOrder = async () => {
   const nuevaOrden = {};
-  const { data } = await axios.post(
-    `${BACKEND_URL}/create_preparation`,
-    nuevaOrden
-  );
+  const { data } = await axios.post(`${BACKEND_URL}/create_order`, nuevaOrden);
   return data;
 };
 
@@ -119,6 +117,9 @@ const App = () => {
       queryClient.invalidateQueries({
         queryKey: ["orders"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["preparations"],
+      });
     },
     onError: () => {
       showSnackbar("Error al crear la orden", "error");
@@ -173,6 +174,7 @@ const App = () => {
   useEffect(() => {
     socket.on("orderUpdated", (updatedOrder: any) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["preparations"] });
       queryClient.invalidateQueries({ queryKey: ["storage"] });
       queryClient.invalidateQueries({ queryKey: ["purchasedIngredients"] });
       showSnackbar(
@@ -201,35 +203,52 @@ const App = () => {
       </Typography>
       <Typography variant="h4">Backend URL: {BACKEND_URL}</Typography>
       <Box sx={{ display: "flex", flexDirection: "row" }}>
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ m: 2 }}
-          disabled={ordersMutation.isPending}
-          onClick={() => ordersMutation.mutate()}
-        >
-          Nueva Orden
-        </Button>
-      </Box>
-      <Box sx={{ display: "flex", flexDirection: "row" }}>
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ m: 2 }}
-          disabled={resetIngredientsMutation.isPending}
-          onClick={() => resetIngredientsMutation.mutate()}
-        >
-          Reiniciar ingredientes
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ m: 2 }}
-          disabled={resetOrdersMutation.isPending}
-          onClick={() => resetOrdersMutation.mutate()}
-        >
-          Reiniciar órdenes y preparaciones
-        </Button>
+        <Box>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "center",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ m: 2 }}
+              disabled={ordersMutation.isPending}
+              onClick={() => ordersMutation.mutate()}
+            >
+              Nueva Orden
+            </Button>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "center",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="secondary"
+              sx={{ m: 2 }}
+              disabled={resetIngredientsMutation.isPending}
+              onClick={() => resetIngredientsMutation.mutate()}
+            >
+              Reiniciar ingredientes
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              sx={{ m: 2 }}
+              disabled={resetOrdersMutation.isPending}
+              onClick={() => resetOrdersMutation.mutate()}
+            >
+              Reiniciar órdenes y preparaciones
+            </Button>
+          </Box>
+        </Box>
+        <LoadingServices />
       </Box>
 
       {isLoadingOrders && (
@@ -249,49 +268,118 @@ const App = () => {
           alignItems: "self-start",
         }}
       >
-        <Paper elevation={3} style={{ padding: "20px" }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <b>Id de la orden</b>
-                </TableCell>
-                <TableCell>
-                  <b>Nombre del plato</b>
-                </TableCell>
-                <TableCell>
-                  <b>Status</b>
-                </TableCell>
-                <TableCell>
-                  <b>Fecha/hora de creado</b>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {orders?.map((order: Record<string, any>, index: number) => (
-                <TableRow key={index}>
-                  <TableCell>{order.orderId}</TableCell>
-                  <TableCell>{order.mealName}</TableCell>
-                  <TableCell>
-                    <Chip
-                      color={
-                        order.status === "COMPLETED" ? "success" : "warning"
-                      }
-                      label={order.status}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {new Date(order.createdAt).toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <Paper elevation={3} style={{ padding: "20px" }}>
+            <Typography variant="h5" component="h2">
+              Historial de órdenes
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <b>Id de la orden</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Platos (cantidad)</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Status</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Fecha/hora de creado</b>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {orders?.map((order: Record<string, any>, index: number) => (
+                  <TableRow key={index}>
+                    <TableCell>{order.orderId}</TableCell>
+                    <TableCell>
+                      {order.meals
+                        .map((meal: any) => `${meal.mealName} (${meal.qty})`)
+                        .join(", ")}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        color={
+                          order.status === "COMPLETED" ? "success" : "warning"
+                        }
+                        label={order.status}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.createdAt).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Paper>
+          <Paper elevation={3} style={{ padding: "20px" }}>
+            <Typography variant="h5" component="h2">
+              Historial de pedidos a cocina (<i>preparations</i>)
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <b>Id de la preparación</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Nombre del plato</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Status</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Orden Id</b>
+                  </TableCell>
+                  <TableCell>
+                    <b>Fecha/hora de solicitud</b>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {preparations?.map(
+                  (meal: Record<string, any>, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell>{meal.id}</TableCell>
+                      <TableCell>{meal.mealName}</TableCell>
+                      <TableCell>{meal.orderId}</TableCell>
+                      <TableCell>
+                        <Chip
+                          color={
+                            meal.status === "COMPLETED" ? "success" : "warning"
+                          }
+                          label={meal.status}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {new Date(meal.createdAt).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          </Paper>
+        </Box>
+      </Box>
+      <Box sx={{ display: "flex", flexDirection: "row", alignItems: "start" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            p: 1,
+            m: 1,
             gap: "10px",
           }}
         >
@@ -324,6 +412,9 @@ const App = () => {
             </Table>
           </Paper>
           <Paper elevation={3} style={{ padding: "10px" }}>
+            <Typography variant="h5" component="h2">
+              Últimos 10 ingredientes comprados
+            </Typography>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -361,54 +452,13 @@ const App = () => {
               </TableBody>
             </Table>
           </Paper>
+          <Divider />
         </Box>
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          p: 1,
-          m: 1,
-          gap: "10px",
-        }}
-      >
-        <Typography variant="h5" component="h2">
-          Historial de pedidos a cocina (<i>preparations</i>)
-        </Typography>
-        <Paper elevation={3} style={{ padding: "20px" }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <b>Nombre del plato</b>
-                </TableCell>
-                <TableCell>
-                  <b>Orden Id</b>
-                </TableCell>
-                <TableCell>
-                  <b>Fecha/hora de solicitud</b>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {preparations?.map((meal: Record<string, any>, index: number) => (
-                <TableRow key={index}>
-                  <TableCell>{meal.mealName}</TableCell>
-                  <TableCell>{meal.orderId}</TableCell>
-                  <TableCell>
-                    {new Date(meal.createdAt).toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-        <Divider />
-        <Typography variant="h5" component="h2">
-          Listado de platos
-        </Typography>
-        <Paper elevation={3} style={{ padding: "4px" }}>
-          <List>
+        <Paper elevation={3} sx={{ p: 1, m: 2 }}>
+          <Typography variant="h5" component="h2">
+            Listado de platos
+          </Typography>
+          <List dense={true}>
             {meals?.map((meal: Record<string, any>, index: number) => (
               <ListItem key={index}>
                 <ListItemText

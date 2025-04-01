@@ -26,9 +26,9 @@ export default function createAppRouter(appService: AppService) {
     }
   });
 
-  router.post("/create_preparation", async (req: Request, res: Response) => {
+  router.post("/create_order", async (req: Request, res: Response) => {
     try {
-      const meal = await appService.createMeal();
+      const meal = await appService.createOrder();
       res.json(meal);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -71,10 +71,45 @@ export default function createAppRouter(appService: AppService) {
     }
   });
 
-  router.post("/reset_orders_and_preparations", async (req: Request, res: Response) => {
+  router.post(
+    "/reset_orders_and_preparations",
+    async (req: Request, res: Response) => {
+      try {
+        await appService.resetOrdersAndPreparations();
+        res.json({ message: "Orders and preparations reset successfully" });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  // HEALTH CHECKS
+
+  router.get(
+    "/health-check-reception",
+    async (_req: Request, res: Response) => {
+      try {
+        const result = await appService.getHealthCheckReception();
+        res.json({ mensaje: result });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
+  router.get("/health-check-kitchen", async (_req: Request, res: Response) => {
     try {
-      await appService.resetOrdersAndPreparations();
-      res.json({ message: "Orders and preparations reset successfully" });
+      const result = await appService.getHealthCheckKitchen();
+      res.json({ mensaje: result });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.get("/health-check-storage", async (_req: Request, res: Response) => {
+    try {
+      const result = await appService.getHealthCheckStorage();
+      res.json({ mensaje: result });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

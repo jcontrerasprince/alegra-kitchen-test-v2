@@ -6,7 +6,7 @@ export const handleMessage = async (
   appService: AppService
 ) => {
   switch (pattern) {
-    case "create_preparation":
+    case "create_order":
       console.log("[RabbitMQ] Crear preparación para orden");
       return await appService.createOrder();
 

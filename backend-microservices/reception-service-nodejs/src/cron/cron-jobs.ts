@@ -6,7 +6,7 @@ const appService = new AppService();
 
 const ORDER_RETRY_CRON = process.env.ORDER_RETRY_CRON || "*/10 * * * *";
 
-// Ejecutar cada 5 minutos
+// Ejecutar cada 10 minutos
 cron.schedule(ORDER_RETRY_CRON, async () => {
   console.log("Reintentando órdenes pendientes...");
   await appService.retryPendingOrders();

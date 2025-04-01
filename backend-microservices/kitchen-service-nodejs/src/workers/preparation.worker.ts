@@ -10,11 +10,11 @@ const preparationRepository = AppDataSource.getRepository(Preparation);
 const worker = new Worker(
   "preparationsQueue",
   async (
-    job: Job<{
-      orderId: string;
-      mealName: string;
-      ingredients: { ingredientName: string; qty: number }[];
-    }>
+    job: Job<
+      Preparation & {
+        ingredients: { ingredientName: string; qty: number }[];
+      }
+    >
   ) => {
     console.log(`Procesando job: ${job.name}`);
 
@@ -22,11 +22,12 @@ const worker = new Worker(
       case "prepare": {
         console.log(`Preparando comida: ${job.data.mealName}`);
 
-        const order = await preparationRepository.findOneBy({
-          orderId: job.data.orderId,
+        const preparation = await preparationRepository.findOneBy({
+          id: job.data.id,
         });
-        if (!order) {
-          throw new Error("Order not found");
+
+        if (!preparation) {
+          throw new Error("Preparation not found");
         }
 
         // Verificar disponibilidad de ingredientes en storage
@@ -34,34 +35,48 @@ const worker = new Worker(
 
         if (!ingredientsAvailable) {
           console.log(
-            `Orden ${job.data.orderId} queda PENDING por falta de ingredientes.`
+            `Preparación ${job.data.orderId} queda PENDING por falta de ingredientes.`
           );
 
           await RabbitMQProducer.emitEvent("reception", {
             pattern: "order_updated",
-            data: { orderId: order.orderId, status: "PENDING" },
+            data: { orderId: job.data.orderId, status: "IN PROGRESS" },
           });
 
           return {
             success: true,
-            message: `Orden ${job.data.orderId} queda PENDING`,
+            message: `Preparación ${job.data.orderId} queda PENDING`,
           };
         }
 
-        await preparationRepository.update(order.id, {
+        await preparationRepository.update(job.data.id, {
           status: "COMPLETED",
         });
 
         // Notificar a recepción que la orden está lista
-        await RabbitMQProducer.emitEvent("reception", {
-          pattern: "order_updated",
-          data: { orderId: order.orderId, status: "COMPLETED" },
+        const allPreparations = await preparationRepository.findBy({
+          orderId: job.data.orderId,
         });
 
-        console.log(
-          `Preparación completada: ${job.data.mealName} para la orden ${job.data.orderId}`
+        const allPreparationsDone = allPreparations.every(
+          (prep) => prep.status === "COMPLETED"
         );
-        return { success: true, message: `Comida ${job.data.mealName} lista` };
+
+        if (allPreparationsDone) {
+          await RabbitMQProducer.emitEvent("reception", {
+            pattern: "order_updated",
+            data: { orderId: job.data.orderId, status: "COMPLETED" },
+          });
+
+          console.log(
+            `Preparaciones completadas para la orden ${job.data.orderId}`
+          );
+        }
+
+        return {
+          success: true,
+          message: `Preparación ${job.data.id} (${job.data.mealName}) lista`,
+        };
       }
     }
   },
@@ -77,18 +92,22 @@ worker.on("failed", (job, err) => {
   console.error(`Job fallido: ${job?.id}`, err);
 });
 
-const requestIngredients = async (order: {
-  orderId: string;
-  ingredients: { ingredientName: string; qty: number }[];
-}) => {
+const requestIngredients = async (
+  preparation: Preparation & {
+    ingredients: { ingredientName: string; qty: number }[];
+  }
+) => {
   console.log("Inicio de requestIngredients...");
-  const marketResponse = await RabbitMQProducer.sendRPCRequest("storage", {
+  const result = await RabbitMQProducer.sendRPCRequest("storage", {
     pattern: "request_ingredients",
-    data: order,
+    data: preparation,
   });
 
-  console.log(`Fin de requestIngredients (${order.orderId})...`);
-  return marketResponse;
+  if (!result.success) {
+    throw new Error(result?.error || "Server Error");
+  }
+  console.log(`Fin de requestIngredients (${preparation.id})...`);
+  return result.data;
 };
 
 export default worker;

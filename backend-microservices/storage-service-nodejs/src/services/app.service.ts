@@ -12,68 +12,72 @@ export class AppService {
     AppDataSource.getRepository(PurchasedIngredient);
   MINUTES_TO_SUBSTRACT = 30;
 
-  async processIngredients(order: {
+  async processIngredients(preparation: {
+    id: string;
     orderId: string;
     ingredients: { ingredientName: string; qty: number }[];
   }): Promise<{ ingredientName: string; qty: number }[] | false> {
     console.log("Inicio de processIngredients...");
-    let lockOrderFlag = false;
-    const orderIngredientsWithStorage =
-      await this.checkEveryIngredientInStorage(order.ingredients);
+    let lockPreparationFlag = false;
 
-    for (let i = 0; i < orderIngredientsWithStorage.length; i++) {
-      const orderIngredient = orderIngredientsWithStorage[i];
+    const preparationIngredientsWithStorage =
+      await this.addEveryIngredientInStorage(preparation.ingredients);
 
+    for (let i = 0; i < preparationIngredientsWithStorage.length; i++) {
+      const preparationIngredient = preparationIngredientsWithStorage[i];
+
+      // Esto resto de los locks lo que se está pidiendo ahora porque se tenía apartado
       let qtyRlyAvailable = this.getQtyRlyAvailable(
-        order.orderId,
-        orderIngredient
+        preparation.id,
+        preparationIngredient
       );
 
-      let ingredientQtyAvailable = qtyRlyAvailable - orderIngredient.qty;
+      let ingredientQtyAvailable = qtyRlyAvailable - preparationIngredient.qty;
 
       const isBuyFromMarket = ingredientQtyAvailable < 0;
 
       if (isBuyFromMarket) {
         const ingredientQtyFromMarket = await this.buyFromMarket({
-          ingredientName: orderIngredient.ingredientName,
-          orderId: order.orderId,
+          ingredientName: preparationIngredient.ingredientName,
+          preparationId: preparation.id,
         });
 
-        orderIngredient.qtyAvailable += ingredientQtyFromMarket.qtySold;
+        preparationIngredient.qtyAvailable += ingredientQtyFromMarket.qtySold;
 
         qtyRlyAvailable += ingredientQtyFromMarket.qtySold;
 
-        if (qtyRlyAvailable < orderIngredient.qty) {
-          lockOrderFlag = true;
+        if (qtyRlyAvailable < preparationIngredient.qty) {
+          lockPreparationFlag = true;
         }
       }
     }
 
     this.calculateQtyAndLock(
-      lockOrderFlag,
-      orderIngredientsWithStorage,
-      order.orderId
+      lockPreparationFlag,
+      preparationIngredientsWithStorage,
+      preparation.id
     );
 
     await Promise.allSettled(
-      orderIngredientsWithStorage.map((orderIngredient) =>
-        this.ingredientRepository.save(orderIngredient)
+      preparationIngredientsWithStorage.map((preparationIngredient) =>
+        this.ingredientRepository.save(preparationIngredient)
       )
     );
 
-    if (lockOrderFlag) {
+    if (lockPreparationFlag) {
       console.log(
-        "Fin de processIngredients de que NO hay un ingrediente al menos..."
+        "Fin de processIngredients de que NO hay al menos un ingrediente..."
       );
       return false;
     }
 
-    orderIngredientsWithStorage.forEach((orderIngredient, i) => {
-      orderIngredientsWithStorage[i].qtyAvailable -= orderIngredient.qty;
+    preparationIngredientsWithStorage.forEach((preparationIngredient, i) => {
+      preparationIngredientsWithStorage[i].qtyAvailable -=
+        preparationIngredient.qty;
     });
 
     console.log("Fin de processIngredients de que SI hay ingredientes...");
-    return order.ingredients;
+    return preparation.ingredients;
   }
 
   getStorage() {
@@ -90,6 +94,7 @@ export class AppService {
           getNowMinusMinutes(this.MINUTES_TO_SUBSTRACT)
         ),
       },
+      take: 10,
     });
   }
 
@@ -98,10 +103,10 @@ export class AppService {
     this.ingredientRepository.save(originalIngredients);
   }
 
-  private async checkEveryIngredientInStorage(
+  private async addEveryIngredientInStorage(
     ingredients: { ingredientName: string; qty: number }[]
   ) {
-    console.log("Inicio de checkEveryIngredientInStorage...");
+    console.log("Inicio de addEveryIngredientInStorage...");
     let ingredientsWithStorage: Array<
       Ingredient & { qty: number; qtySold: number }
     > = [];
@@ -122,7 +127,7 @@ export class AppService {
       });
     }
 
-    console.log("Fin de checkEveryIngredientInStorage...");
+    console.log("Fin de addEveryIngredientInStorage...");
     return ingredientsWithStorage;
   }
 
@@ -134,18 +139,18 @@ export class AppService {
         qtySold: number;
       }
     >,
-    orderId: string
+    preparationId: string
   ) {
     console.log("Inicio de calculateQtyAndLock...");
     if (lockOrderFlag) {
       ingredients.forEach((ingredient, i) => {
-        if (Array.isArray(ingredient.orders)) {
-          if (!ingredient.orders.includes(orderId)) {
-            ingredients[i].orders.push(orderId);
+        if (Array.isArray(ingredient.preparationIds)) {
+          if (!ingredient.preparationIds.includes(preparationId)) {
+            ingredients[i].preparationIds.push(preparationId);
             ingredients[i].qtyLock += ingredient.qty;
           }
         } else {
-          ingredients[i].orders = [orderId];
+          ingredients[i].preparationIds = [preparationId];
           ingredients[i].qtyLock += ingredient.qty;
         }
       });
@@ -153,9 +158,9 @@ export class AppService {
       ingredients.forEach((ingredient, i) => {
         ingredients[i].qtyAvailable -= ingredient.qty;
 
-        const orderIndex = ingredient.orders.indexOf(orderId);
+        const orderIndex = ingredient.preparationIds.indexOf(preparationId);
         if (orderIndex > -1) {
-          ingredients[i].orders.splice(orderIndex, 1);
+          ingredients[i].preparationIds.splice(orderIndex, 1);
           ingredients[i].qtyLock -= ingredient.qty;
           ingredients[i].qtyLock < 0 ? 0 : ingredients[i].qtyLock;
         }
@@ -165,15 +170,15 @@ export class AppService {
   }
 
   private getQtyRlyAvailable(
-    orderId: string,
+    preparationId: string,
     ingredient: Ingredient & {
       qty: number;
       qtySold: number;
     }
   ) {
     console.log("Inicio de getQtyRlyAvailable...");
-    const orderExist = ingredient.orders.includes(orderId);
-    if (orderExist) {
+    const preparationExist = ingredient.preparationIds.includes(preparationId);
+    if (preparationExist) {
       return ingredient.qtyAvailable - (ingredient.qtyLock - ingredient.qty);
     }
 
@@ -183,9 +188,9 @@ export class AppService {
 
   private async buyFromMarket(ingredient: {
     ingredientName: string;
-    orderId: string;
+    preparationId: string;
   }) {
-    console.log("Fin de buyFromMarket...");
+    console.log("Inicio de buyFromMarket...");
     const URL_FARMERS_MARKET = process.env.URL_FARMERS_MARKET || "";
 
     const marketResponse = await axios.get<{ quantitySold: number }>(
@@ -196,11 +201,12 @@ export class AppService {
     );
 
     const qtySold = marketResponse.data.quantitySold;
+    // const qtySold = 0;
 
     await this.purchasedIngredientRepository.insert({
       ingredientName: ingredient.ingredientName,
       qtyPurchased: qtySold,
-      order: ingredient.orderId,
+      preparationId: ingredient.preparationId,
     });
 
     console.log(
