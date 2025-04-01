@@ -83,7 +83,7 @@ export class AppService {
       pattern: "order_updated",
       data: order,
     });
-    console.log("aquiiii:", order);
+
     return this.orderRepository.update(
       { orderId: order.orderId },
       { status: order.status }
