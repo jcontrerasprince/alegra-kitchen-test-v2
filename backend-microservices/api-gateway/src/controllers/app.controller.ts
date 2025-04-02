@@ -83,6 +83,20 @@ export default function createAppRouter(appService: AppService) {
     }
   );
 
+  router.post(
+    "/redeploy_render_services",
+    async (req: Request, res: Response) => {
+      try {
+        const result = await appService.redeployRenderServices(
+          req.body.service
+        );
+        res.json({ message: "Render deployed", result });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+
   // HEALTH CHECKS
 
   router.get(

@@ -5,6 +5,7 @@ import "dotenv/config";
 
 export class AppService {
   private io: Server;
+  RENDER_API_TOKEN = process.env.RENDER_API_TOKEN;
 
   constructor(io: Server) {
     this.io = io;
@@ -86,6 +87,19 @@ export class AppService {
       RabbitMQProducer.emitEvent("reception", { pattern: "reset_orders" }),
       RabbitMQProducer.emitEvent("kitchen", { pattern: "reset_preparations" }),
     ]);
+  }
+
+  async redeployRenderServices(service: string) {
+    const { data } = await axios.post(
+      `https://api.render.com/v1/services/${service}/deploys`,
+      { clearCache: "clear" },
+      {
+        headers: {
+          Authorization: `Bearer ${this.RENDER_API_TOKEN}`,
+        },
+      }
+    );
+    return data;
   }
 
   async orderUpdated(orderUpdated: {
