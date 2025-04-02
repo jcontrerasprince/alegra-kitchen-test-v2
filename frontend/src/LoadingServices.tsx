@@ -20,7 +20,7 @@ const axiosInstance = axios.create({
 
 const getHealthCheck = async (path: string) => {
   try {
-    const { data } = await axiosInstance.get(STORAGE_SERVICE_HC);
+    const { data } = await axiosInstance.get(path);
     return { path, status: "ok", message: data?.mensaje || "OK" };
   } catch (error) {
     return { path, status: "error", message: "No disponible" };
