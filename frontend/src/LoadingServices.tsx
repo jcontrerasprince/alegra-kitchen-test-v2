@@ -8,13 +8,11 @@ import {
 import { useQueries } from "@tanstack/react-query";
 import axios from "axios";
 
-const paths = [
-  "health-check-reception",
-  "health-check-kitchen",
-  "health-check-storage",
-];
+const RECEPTION_SERVICE_HC = import.meta.env.VITE_RECEPTION_SERVICE_HC;
+const KITCHEN_SERVICE_HC = import.meta.env.VITE_KITCHEN_SERVICE_HC;
+const STORAGE_SERVICE_HC = import.meta.env.VITE_STORAGE_SERVICE_HC;
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const paths = [RECEPTION_SERVICE_HC, KITCHEN_SERVICE_HC, STORAGE_SERVICE_HC];
 
 const axiosInstance = axios.create({
   timeout: 120000, // 120,000 ms = 2 minutos
@@ -22,7 +20,7 @@ const axiosInstance = axios.create({
 
 const getHealthCheck = async (path: string) => {
   try {
-    const { data } = await axiosInstance.get(`${BACKEND_URL}/${path}`);
+    const { data } = await axiosInstance.get(STORAGE_SERVICE_HC);
     return { path, status: "ok", message: data?.mensaje || "OK" };
   } catch (error) {
     return { path, status: "error", message: "No disponible" };
@@ -48,7 +46,7 @@ const LoadingServices = () => {
               <CircularProgress size={20} />
             ) : (
               <ListItemText
-                primary={data?.path.replace("health-check-", "").toUpperCase()}
+                primary={data?.path}
                 secondary={data?.status === "ok" ? "🟢 OK" : "🔴 No disponible"}
               />
             )}

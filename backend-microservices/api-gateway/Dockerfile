@@ -17,11 +17,8 @@ COPY . .
 # Expone el puerto (ajusta según cada microservicio)
 EXPOSE 3000
 
-# Establece la variable de entorno para Nest.js
-ENV NODE_ENV=production
-
-# Ejecuta el build de Nest.js
+# Ejecuta el build de Node.js
 RUN npm run build
 
 # Comando para ejecutar el servicio
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "dist/app.js"]
